@@ -3,12 +3,12 @@ from flask import Flask, request
 import telebot
 from telebot import types
 
+# Telegram token
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise RuntimeError("❌ TELEGRAM_TOKEN topilmadi!")
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN, threaded=True)
-
 app = Flask(__name__)
 
 # Reklama va spam uchun kalit so‘zlar
@@ -35,7 +35,6 @@ def check_spam(message):
             if user_id not in warnings[chat_id]:
                 warnings[chat_id][user_id] = 0
             warnings[chat_id][user_id] += 1
-
             warn_count = warnings[chat_id][user_id]
 
             if warn_count >= MAX_WARN:
@@ -120,9 +119,13 @@ def home():
 
 if __name__ == "__main__":
     # Telegram webhook o‘rnatish
-    WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # https://SENING_DOMAIN.com/TELEGRAM_TOKEN
+    WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # misol: https://bot4-t2br.onrender.com
+    if not WEBHOOK_URL:
+        raise RuntimeError("❌ WEBHOOK_URL topilmadi!")
+
     bot.remove_webhook()
     bot.set_webhook(url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}")
+
     # Flask server
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
