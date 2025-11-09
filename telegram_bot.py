@@ -1,4 +1,5 @@
 import os
+from flask import Flask, request
 import telebot
 from telebot import types
 
@@ -7,6 +8,8 @@ if not TELEGRAM_TOKEN:
     raise RuntimeError("❌ TELEGRAM_TOKEN topilmadi!")
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN, threaded=True)
+
+app = Flask(__name__)
 
 # Reklama va spam uchun kalit so‘zlar
 SPAM_KEYWORDS = [
@@ -27,8 +30,6 @@ def check_spam(message):
     if any(keyword in text for keyword in SPAM_KEYWORDS):
         try:
             bot.delete_message(chat_id, message.message_id)
-
-            # Ogohlantirishni yangilash
             if chat_id not in warnings:
                 warnings[chat_id] = {}
             if user_id not in warnings[chat_id]:
@@ -37,7 +38,6 @@ def check_spam(message):
 
             warn_count = warnings[chat_id][user_id]
 
-            # 3 marta ogohlantirsa — avtomatik ban
             if warn_count >= MAX_WARN:
                 bot.kick_chat_member(chat_id, user_id)
                 bot.send_message(chat_id, f"⛔ {message.from_user.first_name} chatdan chiqarildi spam uchun!")
@@ -58,12 +58,10 @@ def warn_user(message):
         return
     user = message.reply_to_message.from_user
     chat_id = message.chat.id
-
     if chat_id not in warnings:
         warnings[chat_id] = {}
     if user.id not in warnings[chat_id]:
         warnings[chat_id][user.id] = 0
-
     warnings[chat_id][user.id] += 1
     warn_count = warnings[chat_id][user.id]
 
@@ -83,11 +81,10 @@ def ban_user(message):
         bot.reply_to(message, "❌ Shu buyruqni ishlatish uchun xabarni javob sifatida tanlang.")
         return
     user = message.reply_to_message.from_user
+    chat_id = message.chat.id
     try:
-        bot.kick_chat_member(message.chat.id, user.id)
+        bot.kick_chat_member(chat_id, user.id)
         bot.reply_to(message, f"⛔ {user.first_name} chatdan chiqarildi!")
-        # Ogohlantirishni reset qilamiz
-        chat_id = message.chat.id
         if chat_id in warnings and user.id in warnings[chat_id]:
             warnings[chat_id][user.id] = 0
     except Exception as e:
@@ -101,7 +98,6 @@ def start(message):
         "➕ Botni guruhga qo‘shish",
         url=f"https://t.me/{bot.get_me().username}?startgroup=true"
     ))
-
     bot.send_message(
         message.chat.id,
         f"👋 Salom! Men reklamalarni avtomatik o'chiradigan botman.\n"
@@ -111,5 +107,22 @@ def start(message):
         reply_markup=markup
     )
 
-print("✅ Bot ishga tushdi...")
-bot.infinity_polling()
+# Flask webhook
+@app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
+def webhook():
+    update = telebot.types.Update.de_json(request.get_data().decode("utf-8"))
+    bot.process_new_updates([update])
+    return "OK", 200
+
+@app.route("/")
+def home():
+    return "<h3>✅ Bot ishlayapti</h3>"
+
+if __name__ == "__main__":
+    # Telegram webhook o‘rnatish
+    WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # https://SENING_DOMAIN.com/TELEGRAM_TOKEN
+    bot.remove_webhook()
+    bot.set_webhook(url=f"{WEBHOOK_URL}/{TELEGRAM_TOKEN}")
+    # Flask server
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
