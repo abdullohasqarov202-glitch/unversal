@@ -15,7 +15,6 @@ SPAM_KEYWORDS = [
 
 # Foydalanuvchi ogohlantirishlarini saqlash (chat_id -> {user_id: warn_count})
 warnings = {}
-
 MAX_WARN = 3  # 3 marta ogohlantirilsa, avtomatik ban
 
 # Xabar kelganda tekshirish
@@ -97,10 +96,20 @@ def ban_user(message):
 # /start komandasi
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(message.chat.id,
-                     "👋 Salom! Men reklamalarni avtomatik o'chiradigan botman.\n"
-                     f"Adminlar: /warn va /ban buyruqlarini ishlatish mumkin.\n"
-                     f"Spam avtomatik aniqlanadi va {MAX_WARN} ogohlantirishdan so'ng ban qilinadi.")
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton(
+        "➕ Botni guruhga qo‘shish",
+        url=f"https://t.me/{bot.get_me().username}?startgroup=true"
+    ))
+
+    bot.send_message(
+        message.chat.id,
+        f"👋 Salom! Men reklamalarni avtomatik o'chiradigan botman.\n"
+        f"Adminlar: /warn va /ban buyruqlarini ishlatish mumkin.\n"
+        f"Spam avtomatik aniqlanadi va {MAX_WARN} ogohlantirishdan so'ng ban qilinadi.\n\n"
+        f"Botni guruhingizga qo‘shish uchun quyidagi tugmani bosing:",
+        reply_markup=markup
+    )
 
 print("✅ Bot ishga tushdi...")
 bot.infinity_polling()
